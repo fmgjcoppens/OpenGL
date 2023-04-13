@@ -1,24 +1,17 @@
 #include "include/glad/glad.h"
 #include "include/GLFW/glfw3.h"
 #include "include/linmath.h"
+// #include <stdlib.h>
 
-#include <stdio.h>
+#include <iostream>
 
 typedef struct Vertex {
     float x, y;
     float r, g, b;
 } Vertex;
- 
-static void error_callback(int error, const char* description) {
-    fprintf(stderr, "Error: %s\n", description);
-}
- 
-static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)  {
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, GLFW_TRUE);
-}
- 
-int main(void) {
+
+static void error_callback(int error, const char* description);
+static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 
     static const char* vertex_shader_text =
         "#version 110\n"
@@ -39,28 +32,55 @@ int main(void) {
         "{\n"
         "    gl_FragColor = vec4(color, 1.0);\n"
         "}\n";
+ 
+int main(void) {
 
     glfwSetErrorCallback(error_callback);
  
     if (!glfwInit())
         exit(EXIT_FAILURE);
  
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+    glfwWindowHint(GLFW_FLOATING, GL_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, GL_TRUE); // Prevents the window to be
+                                         // resizalble if FALSE. This also
+                                         // forces the window to be a
+                                         // floating window in i3.
  
-    GLFWwindow* window = glfwCreateWindow(640, 480, "Simple example", NULL, NULL);
+    static const int WIDTH = 800, HEIGHT = 600; // Default value for floating windows. 
+    GLFWwindow* window = glfwCreateWindow(
+        WIDTH, HEIGHT,
+        "My first GLAD/GLFW3 window!",
+        NULL, NULL);
     if (!window) {
         glfwTerminate();
         exit(EXIT_FAILURE);
     }
- 
-    glfwSetKeyCallback(window, key_callback);
- 
     glfwMakeContextCurrent(window);
-    gladLoadGL();
+
+    glfwSetKeyCallback(window, key_callback);
+
+    int version = gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
+    if (version == 0) {
+        std::cout << "Failed to initialize OpenGL context" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
     glfwSwapInterval(1);
- 
-    // NOTE: OpenGL error checks have been omitted for brevity
+
+    // // My minimal App loop. Does nothing. Just draw a window.
+    // while(!glfwWindowShouldClose(window)) {
+
+    //     int width, height;
+    //     glfwGetFramebufferSize(window, &width, &height);
+    //     glViewport(0, 0, width, width);
+
+    //     glfwPollEvents();
+
+    //     glClearColor(0.2, 0.3, 0.3, 1);
+    //     glClear(GL_COLOR_BUFFER_BIT);
+
+    //     glfwSwapBuffers(window);
+    // } 
  
     GLuint vertex_buffer;
     glGenBuffers(1, &vertex_buffer);
@@ -108,10 +128,11 @@ int main(void) {
         ratio = width / (float) height;
  
         glViewport(0, 0, width, height);
+        glClearColor(0.2, 0.3, 0.3, 1);
         glClear(GL_COLOR_BUFFER_BIT);
  
         mat4x4_identity(m);
-        mat4x4_rotate_Z(m, m, (float) glfwGetTime());
+        mat4x4_rotate_Z(m, m, 10*(float)glfwGetTime());
         mat4x4_ortho(p, -ratio, ratio, -1.f, 1.f, 1.f, -1.f);
         mat4x4_mul(mvp, p, m);
  
@@ -122,9 +143,19 @@ int main(void) {
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
- 
+
+
     glfwDestroyWindow(window);
  
     glfwTerminate();
     exit(EXIT_SUCCESS);
+}
+
+static void error_callback(int error, const char* description) {
+    std::cerr << "Error: " << description << "\n";
+}
+ 
+static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)  {
+    if ( (key == GLFW_KEY_ESCAPE || key == GLFW_KEY_Q) && action == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, GLFW_TRUE);
 }

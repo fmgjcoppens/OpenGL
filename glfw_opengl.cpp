@@ -28,6 +28,7 @@ int main(void)
     while (!glfwWindowShouldClose(window))
     {
         /* Render here */
+	glClearColor(0.2, 0.3, 0.3, 1);
         glClear(GL_COLOR_BUFFER_BIT);
       
         // OpenGL rendering goes here
