@@ -16,6 +16,6 @@ g++ -c glfw_vulkan_bare.cpp
 g++ glfw_vulkan_bare.o lib/GLFW/libglfw3.a -lvulkan -o run_glfw_vulkan_bare
 rm glfw_vulkan_bare.o
 
-g++ -c glfw_vulkan_triangle.cpp
+g++ -g -O0 -c glfw_vulkan_triangle.cpp
 g++ glfw_vulkan_triangle.o lib/GLFW/libglfw3.a -lvulkan -o run_glfw_vulkan_triangle
 rm glfw_vulkan_triangle.o
