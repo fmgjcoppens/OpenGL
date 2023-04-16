@@ -74,6 +74,11 @@ private:
         CreateLogicalDevice();
         CreateSwapChain();
         CreateImageViews();
+        CreateGraphicsPipeline();
+    }
+
+    void CreateGraphicsPipeline() {
+        
     }
 
     void CreateImageViews() {
