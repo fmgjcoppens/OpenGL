@@ -19,3 +19,5 @@ rm glfw_vulkan_bare.o
 g++ -g -O0 -c glfw_vulkan_triangle.cpp
 g++ glfw_vulkan_triangle.o lib/GLFW/libglfw3.a -lvulkan -o run_glfw_vulkan_triangle
 rm glfw_vulkan_triangle.o
+(cd shaders && ./compile.sh)
+
