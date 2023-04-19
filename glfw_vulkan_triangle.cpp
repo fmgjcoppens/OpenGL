@@ -2,17 +2,17 @@
 #include "include/GLFW/glfw3.h"
 
 #include <iostream>
+#include <fstream>
 #include <stdexcept>
-#include <cstdlib>
+#include <algorithm>
 #include <vector>
+#include <cstdlib>
+#include <limits>
 #include <optional>
 #include <set>
-#include <algorithm>
-#include <limits>
-#include <fstream>
 
-const unsigned int WIDTH = 800;  // Default values. Have no effect on tiled 
-const unsigned int HEIGHT = 600; // window managers like i3/sway.
+const uint32_t WIDTH = 800;  // Default values. Have no effect on tiled 
+const uint32_t HEIGHT = 600; // window managers like i3/sway.
 
 const std::vector<const char*> deviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
@@ -20,8 +20,8 @@ const std::vector<const char*> deviceExtensions = {
 
 struct QueueFamilyIndices {
 
-    std::optional<unsigned int> graphicsFamily;
-    std::optional<unsigned int> presentFamily;
+    std::optional<uint32_t> graphicsFamily;
+    std::optional<uint32_t> presentFamily;
 
     bool isCompleted() {
         return graphicsFamily.has_value() && presentFamily.has_value();
@@ -33,23 +33,6 @@ struct SwapChainSupportDetails {
     std::vector<VkSurfaceFormatKHR> formats;
     std::vector<VkPresentModeKHR> presentModes;
 };
-
-static std::vector<char> ReadFile(const std::string& filename) {
-    std::ifstream file(filename, std::ios::ate | std::ios::binary);
-    if (!file.is_open()) {
-        throw std::runtime_error("Failed to open file!");
-    }
-    size_t fileSize = (size_t) file.tellg();
-    std::cout << "VERIFICATION: Size of file '" << filename << "' is: "
-              << fileSize << " byte." << std::endl;
-
-    std::vector<char> buffer(fileSize);
-    file.seekg(0);
-    file.read(buffer.data(), fileSize);
-    file.close();
-
-    return buffer;
-}
 
 class HelloTriangleApp {
 public:
@@ -78,7 +61,9 @@ private:
 
     std::vector<VkImageView> _swapChainImageViews;
 
+    VkRenderPass _renderPass;
     VkPipelineLayout _pipelineLayout;
+    VkPipeline _graphicsPipeline;
 
     void InitWindow() {
         glfwInit();
@@ -94,7 +79,64 @@ private:
         CreateLogicalDevice();
         CreateSwapChain();
         CreateImageViews();
+        CreateRenderPass();
         CreateGraphicsPipeline();
+    }
+
+    void CreateImageViews() {
+        _swapChainImageViews.resize(_swapChainImages.size());
+        for (size_t i = 0; i < _swapChainImages.size(); i++) {
+            VkImageViewCreateInfo createInfo{};
+            createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            createInfo.image = _swapChainImages[i];
+            createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            createInfo.format = _swapChainImageFormat;
+            createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+            createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+            createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+            createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+            createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            createInfo.subresourceRange.baseMipLevel = 0;
+            createInfo.subresourceRange.levelCount = 1;
+            createInfo.subresourceRange.baseArrayLayer = 0;
+            createInfo.subresourceRange.layerCount = 1;
+            if (vkCreateImageView(_device, &createInfo, nullptr, &_swapChainImageViews[i]) != VK_SUCCESS) {
+                throw std::runtime_error("Failed to create image views!");
+            }
+        }
+    }
+
+    void CreateRenderPass() {
+        VkAttachmentDescription colorAttachement{};
+        colorAttachement.format = _swapChainImageFormat;
+        colorAttachement.samples = VK_SAMPLE_COUNT_1_BIT;
+        colorAttachement.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        colorAttachement.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        colorAttachement.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        colorAttachement.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        colorAttachement.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        colorAttachement.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+        VkAttachmentReference colorAttachmentRef{};
+        colorAttachmentRef.attachment = 0;
+        colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        
+        VkSubpassDescription subpass{};
+        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        subpass.colorAttachmentCount = 1;
+        subpass.pColorAttachments = &colorAttachmentRef;
+
+        VkRenderPassCreateInfo renderPassInfo{};
+        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        renderPassInfo.attachmentCount = 1;
+        renderPassInfo.pAttachments = &colorAttachement;
+        renderPassInfo.subpassCount = 1;
+        renderPassInfo.pSubpasses = &subpass;
+
+        if (vkCreateRenderPass(_device, &renderPassInfo, nullptr, &_renderPass)
+                != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create render pass!");
+        }
     }
 
     void CreateGraphicsPipeline() {
@@ -129,23 +171,24 @@ private:
         inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         inputAssembly.primitiveRestartEnable = VK_FALSE;
 
-        VkViewport viewport{};
-        viewport.x = 0.0f;
-        viewport.y = 0.0f;
-        viewport.width = (float)_swapChainExtent.width;
-        viewport.height = (float)_swapChainExtent.height;
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
+        // VkViewport viewport{};
+        // viewport.x = 0.0f;
+        // viewport.y = 0.0f;
+        // viewport.width = (float)_swapChainExtent.width;
+        // viewport.height = (float)_swapChainExtent.height;
+        // viewport.minDepth = 0.0f;
+        // viewport.maxDepth = 1.0f;
 
-        VkRect2D scissor{};
-        scissor.offset = {0, 0};
-        scissor.extent = _swapChainExtent;
+        // VkRect2D scissor{};
+        // scissor.offset = {0, 0};
+        // scissor.extent = _swapChainExtent;
 
         VkPipelineViewportStateCreateInfo viewportState{};
         viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
         viewportState.viewportCount = 1;
-        viewportState.pViewports = &viewport;
-        viewportState.pScissors = &scissor;
+        viewportState.scissorCount = 1;
+        // viewportState.pViewports = &viewport;
+        // viewportState.pScissors = &scissor;
 
         VkPipelineRasterizationStateCreateInfo rasterizer{};
         rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
@@ -157,7 +200,7 @@ private:
         rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
         rasterizer.depthBiasEnable = VK_FALSE;
 
-        VkPipelineMultisampleStateCreateInfo multisampling;
+        VkPipelineMultisampleStateCreateInfo multisampling{};
         multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
         multisampling.sampleShadingEnable = VK_FALSE;
         multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
@@ -177,6 +220,15 @@ private:
         colorBlending.blendConstants[2] = 0.0f;
         colorBlending.blendConstants[3] = 0.0f;
 
+        std::vector<VkDynamicState> dynamicStates = {
+            VK_DYNAMIC_STATE_VIEWPORT,
+            VK_DYNAMIC_STATE_SCISSOR
+        };
+        VkPipelineDynamicStateCreateInfo dynamicState{};
+        dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+        dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
+        dynamicState.pDynamicStates = dynamicStates.data();
+
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         pipelineLayoutInfo.setLayoutCount = 0;
@@ -184,7 +236,28 @@ private:
 
         if (vkCreatePipelineLayout(_device, &pipelineLayoutInfo, nullptr, &_pipelineLayout) != VK_SUCCESS) {
             throw std::runtime_error("Failed to create pipeline layout!");
-        }        
+        }
+
+        VkGraphicsPipelineCreateInfo pipelineInfo{};
+        pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+        pipelineInfo.stageCount = 2;
+        pipelineInfo.pStages = shaderStages;
+        pipelineInfo.pVertexInputState = &vertexInputInfo;
+        pipelineInfo.pInputAssemblyState = &inputAssembly;
+        pipelineInfo.pViewportState = &viewportState;
+        pipelineInfo.pRasterizationState = &rasterizer;
+        pipelineInfo.pMultisampleState = &multisampling;
+        pipelineInfo.pColorBlendState = &colorBlending;
+        pipelineInfo.pDynamicState = &dynamicState;
+        pipelineInfo.layout = _pipelineLayout;
+        pipelineInfo.renderPass = _renderPass;
+        pipelineInfo.subpass = 0;
+        pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+
+        if (vkCreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &pipelineInfo,
+                nullptr, &_graphicsPipeline) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create graphics pipeline!");
+        }
 
         vkDestroyShaderModule(_device, fragShaderModule, nullptr);
         vkDestroyShaderModule(_device, vertShaderModule, nullptr);
@@ -204,29 +277,6 @@ private:
         return shaderModule;
     }
 
-    void CreateImageViews() {
-        _swapChainImageViews.resize(_swapChainImages.size());
-        for (size_t i = 0; i < _swapChainImages.size(); i++) {
-            VkImageViewCreateInfo createInfo{};
-            createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-            createInfo.image = _swapChainImages[i];
-            createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-            createInfo.format = _swapChainImageFormat;
-            createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-            createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-            createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-            createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-            createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            createInfo.subresourceRange.baseMipLevel = 0;
-            createInfo.subresourceRange.levelCount = 1;
-            createInfo.subresourceRange.baseArrayLayer = 0;
-            createInfo.subresourceRange.layerCount = 1;
-            if (vkCreateImageView(_device, &createInfo, nullptr, &_swapChainImageViews[i]) != VK_SUCCESS) {
-                throw std::runtime_error("Failed to create image views!");
-            }
-        }
-    }
-
     void CreateSwapChain() {
         SwapChainSupportDetails swapChainSupport =
             querySwapChainSupport(_physicalDevice);
@@ -236,7 +286,7 @@ private:
             chooseSwapPresentMode(swapChainSupport.presentModes);
         VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities);
 
-        unsigned int imageCount = swapChainSupport.capabilities.minImageCount + 1;
+        uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
 
         if (swapChainSupport.capabilities.maxImageCount > 0 &&
             imageCount > swapChainSupport.capabilities.maxImageCount) {
@@ -254,7 +304,7 @@ private:
         createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
         
         QueueFamilyIndices indices = FindQueueFamilies(_physicalDevice);
-        unsigned int queueFamilyIndices[] = {indices.graphicsFamily.value(),
+        uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(),
                                              indices.presentFamily.value()};
 
         if (indices.graphicsFamily != indices.presentFamily) {
@@ -299,7 +349,7 @@ private:
         VkInstanceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
         createInfo.pApplicationInfo = &appInfo;
-        unsigned int glfwExtensionCount = 0;
+        uint32_t glfwExtensionCount = 0;
         const char** glfwExtensions;
         glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
         createInfo.enabledExtensionCount = glfwExtensionCount;
@@ -320,7 +370,7 @@ private:
     }
 
     void PickPhysicalDevice() {
-        unsigned int deviceCount = 0;
+        uint32_t deviceCount = 0;
         vkEnumeratePhysicalDevices(_instance, &deviceCount, nullptr);
 
         if (deviceCount == 0) {
@@ -351,12 +401,12 @@ private:
         // queueCreateInfo.queueCount = 1;
 
         std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-        std::set<unsigned int> uniqueQueueFamilies = 
+        std::set<uint32_t> uniqueQueueFamilies = 
             {indices.graphicsFamily.value(), indices.presentFamily.value()};
 
         float queuePriority = 1.0f;
 
-        for (unsigned int queueFamily : uniqueQueueFamilies) {
+        for (uint32_t queueFamily : uniqueQueueFamilies) {
             VkDeviceQueueCreateInfo queueCreateInfo{};
             queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
             queueCreateInfo.queueFamilyIndex = queueFamily;
@@ -369,10 +419,10 @@ private:
 
         VkDeviceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-        createInfo.queueCreateInfoCount = static_cast<unsigned int>(queueCreateInfos.size());
+        createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
         createInfo.pQueueCreateInfos = queueCreateInfos.data();
         createInfo.pEnabledFeatures = &deviceFeatures;
-        createInfo.enabledExtensionCount = static_cast<unsigned int>(deviceExtensions.size());
+        createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
         createInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
         if (vkCreateDevice(_physicalDevice, &createInfo, nullptr, &_device) != VK_SUCCESS) {
@@ -396,7 +446,7 @@ private:
     }
 
     bool checkDeviceExtensionSupport(VkPhysicalDevice device) {
-        unsigned int extensionCount;
+        uint32_t extensionCount;
         vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
 
         std::vector<VkExtensionProperties> availableExtensions(extensionCount);
@@ -413,13 +463,13 @@ private:
 
     QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device) {
         QueueFamilyIndices indices;
-        unsigned int queueFamilyCount = 0;
+        uint32_t queueFamilyCount = 0;
         vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
 
         std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
         vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
 
-        unsigned int i = 0;
+        uint32_t i = 0;
         for (auto &queueFamily : queueFamilies) {
             if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
                 indices.graphicsFamily = i;
@@ -448,7 +498,7 @@ private:
         vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
             device, _surface, &details.capabilities);
 
-        unsigned int formatCount;
+        uint32_t formatCount;
         vkGetPhysicalDeviceSurfaceFormatsKHR(
             device, _surface, &formatCount, nullptr);
 
@@ -458,7 +508,7 @@ private:
                 device, _surface, &formatCount, details.formats.data());
         }
 
-        unsigned int presentModeCount;
+        uint32_t presentModeCount;
         vkGetPhysicalDeviceSurfacePresentModesKHR(
             device, _surface, &presentModeCount, nullptr);
 
@@ -495,15 +545,15 @@ private:
     }
 
     VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) {
-        if (capabilities.currentExtent.width != std::numeric_limits<unsigned int>::max()) {
+        if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
             return capabilities.currentExtent;
         } else {
             int width, height;
             glfwGetFramebufferSize(_window, &width, &height);
 
             VkExtent2D actualExtent = {
-                static_cast<unsigned int>(width),
-                static_cast<unsigned int>(height)
+                static_cast<uint32_t>(width),
+                static_cast<uint32_t>(height)
             };
 
             actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
@@ -513,7 +563,7 @@ private:
         }
     }
 
-    void PrintVulkanExtensions(unsigned int& ec) {
+    void PrintVulkanExtensions(uint32_t& ec) {
         std::vector<VkExtensionProperties> extensions(ec);
         vkEnumerateInstanceExtensionProperties(nullptr, &ec, extensions.data());
         std::cout << "Available Vulkan extensions:" << std::endl;
@@ -529,12 +579,14 @@ private:
     }
 
     void Cleanup () {
-
+        vkDestroyPipeline(_device, _graphicsPipeline, nullptr);
         vkDestroyPipelineLayout(_device, _pipelineLayout, nullptr);
+        vkDestroyRenderPass(_device, _renderPass, nullptr);
 
         for (auto imageView : _swapChainImageViews) {
             vkDestroyImageView(_device, imageView, nullptr);
         }
+
         vkDestroySwapchainKHR(_device, _swapChain, nullptr);
         vkDestroyDevice(_device, nullptr);
         vkDestroySurfaceKHR(_instance, _surface, nullptr);
@@ -542,6 +594,24 @@ private:
         glfwDestroyWindow(_window);
         glfwTerminate();
     }
+
+    static std::vector<char> ReadFile(const std::string& filename) {
+        std::ifstream file(filename, std::ios::ate | std::ios::binary);
+        if (!file.is_open()) {
+            throw std::runtime_error("Failed to open file!");
+        }
+        size_t fileSize = (size_t) file.tellg();
+        std::cout << "VERIFICATION: Size of file '" << filename << "' is: "
+                << fileSize << " byte." << std::endl;
+
+        std::vector<char> buffer(fileSize);
+        file.seekg(0);
+        file.read(buffer.data(), fileSize);
+        file.close();
+
+        return buffer;
+    }
+
 };
 
 int main() {
