@@ -14,6 +14,8 @@
 const uint32_t WIDTH = 800;  // Default values. Have no effect on tiled 
 const uint32_t HEIGHT = 600; // window managers like i3/sway.
 
+const int MAX_FRAMES_IN_FLIGHT = 2;
+
 const std::vector<const char*> deviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
@@ -66,6 +68,16 @@ private:
     VkPipelineLayout _pipelineLayout;
     VkPipeline _graphicsPipeline;
 
+    VkCommandPool _commandPool;
+    std::vector<VkCommandBuffer> _commandBuffers;
+
+    std::vector<VkSemaphore> _imageAvailableSemaphores;
+    std::vector<VkSemaphore> _renderFinishedSemaphores;
+    std::vector<VkFence> _inFlightFences;
+    std::vector<VkFence> _imagesInFlight;
+    unsigned long long currentFrame = 0;
+    
+
     void InitWindow() {
         glfwInit();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -83,6 +95,8 @@ private:
         CreateRenderPass();
         CreateGraphicsPipeline();
         CreateFramebuffers();
+        CreateCommandPool();
+        CreateCommandBuffers();
     }
 
     void CreateImageViews() {
@@ -284,6 +298,64 @@ private:
 
             if (vkCreateFramebuffer(_device, &frameBufferInfo, nullptr, &_swapChainFramebuffers[i]) != VK_SUCCESS) {
                 throw std::runtime_error("Failed to create framebuffers!");
+            }
+        }
+    }
+
+    void CreateCommandPool() {
+        QueueFamilyIndices queueFamilyIndices = FindQueueFamilies(_physicalDevice);
+
+        VkCommandPoolCreateInfo poolInfo{};
+        poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
+
+        if (vkCreateCommandPool(_device, &poolInfo, nullptr, &_commandPool) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create command pool!");
+        }
+    }
+
+    void CreateCommandBuffers() {
+        _commandBuffers.resize(_swapChainFramebuffers.size());
+
+        VkCommandBufferAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfo.commandPool = _commandPool;
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocInfo.commandBufferCount = (unsigned int)_commandBuffers.size();
+
+        if(vkAllocateCommandBuffers(_device, &allocInfo, _commandBuffers.data()) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to allocate command buffers!");
+        }
+
+        for (unsigned long long i = 0; i < _commandBuffers.size(); ++i) {
+            VkCommandBufferBeginInfo beginInfo{};
+            beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+            if (vkBeginCommandBuffer(_commandBuffers[i], &beginInfo) != VK_SUCCESS) {
+                throw std::runtime_error("Failed to begin recording command buffer!");
+            }
+
+            VkRenderPassBeginInfo renderPassInfo{};
+            renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+            renderPassInfo.renderPass = _renderPass;
+            renderPassInfo.framebuffer = _swapChainFramebuffers[i];
+            renderPassInfo.renderArea.offset = {0, 0};
+            renderPassInfo.renderArea.extent = _swapChainExtent;
+
+            VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+            renderPassInfo.clearValueCount = 1;
+            renderPassInfo.pClearValues = &clearColor;
+
+            vkCmdBeginRenderPass(_commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+            vkCmdBindPipeline(_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _graphicsPipeline);
+
+            vkCmdDraw(_commandBuffers[i], 3, 1, 0, 0);
+
+            vkCmdEndRenderPass(_commandBuffers[i]);
+
+            if (vkEndCommandBuffer(_commandBuffers[i]) != VK_SUCCESS) {
+                throw std::runtime_error("Failed to record command buffer!");
             }
         }
     }
@@ -604,6 +676,7 @@ private:
     }
 
     void Cleanup () {
+        vkDestroyCommandPool(_device, _commandPool, nullptr);
 
         for (auto framebuffer : _swapChainFramebuffers) {
             vkDestroyFramebuffer(_device, framebuffer, nullptr);
