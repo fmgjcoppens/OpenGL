@@ -60,6 +60,7 @@ private:
     VkExtent2D _swapChainExtent;
 
     std::vector<VkImageView> _swapChainImageViews;
+    std::vector<VkFramebuffer> _swapChainFramebuffers;
 
     VkRenderPass _renderPass;
     VkPipelineLayout _pipelineLayout;
@@ -81,6 +82,7 @@ private:
         CreateImageViews();
         CreateRenderPass();
         CreateGraphicsPipeline();
+        CreateFramebuffers();
     }
 
     void CreateImageViews() {
@@ -171,24 +173,24 @@ private:
         inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         inputAssembly.primitiveRestartEnable = VK_FALSE;
 
-        // VkViewport viewport{};
-        // viewport.x = 0.0f;
-        // viewport.y = 0.0f;
-        // viewport.width = (float)_swapChainExtent.width;
-        // viewport.height = (float)_swapChainExtent.height;
-        // viewport.minDepth = 0.0f;
-        // viewport.maxDepth = 1.0f;
+        VkViewport viewport{};
+        viewport.x = 0.0f;
+        viewport.y = 0.0f;
+        viewport.width = (float)_swapChainExtent.width;
+        viewport.height = (float)_swapChainExtent.height;
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
 
-        // VkRect2D scissor{};
-        // scissor.offset = {0, 0};
-        // scissor.extent = _swapChainExtent;
+        VkRect2D scissor{};
+        scissor.offset = {0, 0};
+        scissor.extent = _swapChainExtent;
 
         VkPipelineViewportStateCreateInfo viewportState{};
         viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
         viewportState.viewportCount = 1;
         viewportState.scissorCount = 1;
-        // viewportState.pViewports = &viewport;
-        // viewportState.pScissors = &scissor;
+        viewportState.pViewports = &viewport;
+        viewportState.pScissors = &scissor;
 
         VkPipelineRasterizationStateCreateInfo rasterizer{};
         rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
@@ -261,6 +263,29 @@ private:
 
         vkDestroyShaderModule(_device, fragShaderModule, nullptr);
         vkDestroyShaderModule(_device, vertShaderModule, nullptr);
+    }
+
+    void CreateFramebuffers() {
+        _swapChainFramebuffers.resize(_swapChainImageViews.size());
+
+        for (unsigned long long i = 0; i < _swapChainImageViews.size(); ++i) {
+            VkImageView attachments[] = {
+                _swapChainImageViews[i]
+            };
+
+            VkFramebufferCreateInfo frameBufferInfo{};
+            frameBufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+            frameBufferInfo.renderPass = _renderPass;
+            frameBufferInfo.attachmentCount = 1;
+            frameBufferInfo.pAttachments = attachments;
+            frameBufferInfo.width = _swapChainExtent.width;
+            frameBufferInfo.height = _swapChainExtent.height;
+            frameBufferInfo.layers = 1;
+
+            if (vkCreateFramebuffer(_device, &frameBufferInfo, nullptr, &_swapChainFramebuffers[i]) != VK_SUCCESS) {
+                throw std::runtime_error("Failed to create framebuffers!");
+            }
+        }
     }
 
     VkShaderModule CreateShaderModule(const std::vector<char>& code) {
@@ -579,6 +604,11 @@ private:
     }
 
     void Cleanup () {
+
+        for (auto framebuffer : _swapChainFramebuffers) {
+            vkDestroyFramebuffer(_device, framebuffer, nullptr);
+        }
+
         vkDestroyPipeline(_device, _graphicsPipeline, nullptr);
         vkDestroyPipelineLayout(_device, _pipelineLayout, nullptr);
         vkDestroyRenderPass(_device, _renderPass, nullptr);
