@@ -1,0 +1,134 @@
+main()
+
+    app.run()
+
+        initWindow()
+            glfwInit()
+            glfwCreateWindow(...)
+
+        initVulkan()
+            createInstance()
+                glfwGetRequiredInstanceExtensions(..)
+                vkCreateInstance(...)
+
+            createSurface()
+                glfwCreateWindowSurface(...)
+
+            pickPhysicalDevice()
+                vkEnumeratePhysicalDevices(...)
+                isDeviceSuitable(...)
+                    findQueueFamilies(...)
+                        vkGetPhysicalDeviceQueueFamilyProperties(...)
+                        vkGetPhysicalDeviceSurfaceSupportKHR(...)
+                        isComplete()
+
+                    checkDeviceExtensionSupport(...)
+                        vkEnumerateDeviceExtensionProperties(...)
+
+                    querySwapChainSupport(...)
+                        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(...)
+                        vkGetPhysicalDeviceSurfaceFormatsKHR(...)
+                        vkGetPhysicalDeviceSurfacePresentModesKHR(...)
+                    
+                    isComplete()
+                    
+            createLogicalDevice()
+                findQueueFamilies(...)
+                    vkGetPhysicalDeviceQueueFamilyProperties(...)
+                    vkGetPhysicalDeviceSurfaceSupportKHR(...)
+                    isComplete()
+
+                vkCreateDevice(...)
+                vkGetDeviceQueue(...)
+
+            createSwapChain()
+                querySwapChainSupport(...)
+                    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(...)
+                    vkGetPhysicalDeviceSurfaceFormatsKHR(...)
+                    vkGetPhysicalDeviceSurfacePresentModesKHR(...)
+                
+                chooseSwapSurfaceFormat(...)
+                chooseSwapPresentMode(...)
+                chooseSwapExtent(...)
+                    glfwGetFramebufferSize(...)
+                
+                findQueueFamilies(...)
+                    vkGetPhysicalDeviceQueueFamilyProperties(...)
+                    vkGetPhysicalDeviceSurfaceSupportKHR(...)
+                    isComplete()
+
+                vkCreateSwapchainKHR(...)
+                vkGetSwapchainImagesKHR(...)
+            
+            createImageViews()
+                vkCreateImageView(...)
+
+            createRenderPass()
+                vkCreateRenderPass(...)
+            
+            createGraphicsPipeline()
+                readFile(...)   <-----------------  THE VERTEX- AND
+                createShaderModule(...)             FRAGMENT SHADER SPIR-V
+                    vkCreateShaderModule(...)       BYTECODE IS READ HERE
+
+                vkCreatePipelineLayout(...)
+                vkCreateGraphicsPipelines(...)
+                vkDestroyShaderModule(...)
+            
+            createFramebuffers()
+                vkCreateFramebuffer(...)
+
+            createCommandPool()
+                findQueueFamilies(...)
+                    vkGetPhysicalDeviceQueueFamilyProperties(...)
+                    vkGetPhysicalDeviceSurfaceSupportKHR(...)
+                    isComplete()
+                
+                vkCreateCommandPool(...)
+            
+            createCommandBuffer()
+                vkAllocateCommandBuffers(...)
+            
+            createSyncObjects()
+                vkCreateSemaphore(...)
+                vkCreateFence(...)
+
+        mainLoop()
+            glfwWindowShouldClose(...)
+            glfwPollEvents()
+            drawFrame()
+                vkWaitForFences(...)
+                vkAcquireNextImageKHR(...)
+                vkWaitForFences(...)
+                vkResetFences(...)
+                vkResetCommandBuffer(...)
+                RecordCommandBuffer(...)
+                    vkBeginCommandBuffer(...)
+                    vkCmdBeginRenderPass(...)
+                    vkCmdBindPipeline(...)
+                    vkCmdSetViewport(...)
+                    vkCmdSetScissor(...)
+                    vkCmdDraw(...)
+                    vkCmdEndRenderPass(...)
+                    vkEndCommandBuffer(...)
+
+                vkQueueSubmit(...)
+                vkQueuePresentKHR(...)
+            
+            vkDeviceWaitIdle(...)
+        
+        cleanup()
+            vkDestroySemaphore(...)
+            vkDestroyFence(...)
+            vkDestroyCommandPool(...)
+            vkDestroyFramebuffer(...)
+            vkDestroyPipeline(...)
+            vkDestroyPipelineLayout(...)
+            vkDestroyRenderPass(...)
+            vkDestroyImageView(...)
+            vkDestroySwapchainKHR(...)
+            vkDestroyDevice(...)
+            vkDestroySurfaceKHR(...)
+            vkDestroyInstance(...)
+            glfwDestroyWindow(...)
+            glfwTerminate()
