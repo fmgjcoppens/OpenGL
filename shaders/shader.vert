@@ -3,9 +3,9 @@
 layout(location = 0) out vec3 fragColor;
 
 vec2 positions[3] = vec2[3]( // An array of 3 vec2 objects
-    vec2( 0.00, -0.87),
-    vec2 (0.22,  0.52),
-    vec2(-0.22,  0.52)
+    vec2( 0.00, -0.50),
+    vec2 (0.50,  0.50),
+    vec2(-0.50,  0.50)
 );
 
 vec3 colors[3] = vec3[3](   // An array of 3 vec3 objects
