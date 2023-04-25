@@ -76,11 +76,22 @@ private:
     std::vector<VkFence> _imagesInFlight;
     size_t currentFrame = 0;
 
+    bool _framebufferResized = false;
+
     void InitWindow() {
         glfwInit();
+
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        // glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+
         _window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan Renderer", nullptr, nullptr);
+
+        glfwSetWindowUserPointer(_window, this);
+        glfwSetFramebufferSizeCallback(_window, FramebufferResizeCallback);
+    }
+
+    static void FramebufferResizeCallback(GLFWwindow* window, int width, int height) {
+        auto app = reinterpret_cast<HelloTriangleApp*>(glfwGetWindowUserPointer(window));
+        app->_framebufferResized = true;
     }
 
     void InitVulkan() {
@@ -108,18 +119,14 @@ private:
         vkDeviceWaitIdle(_device);
     }
 
-    void Cleanup() {
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-            vkDestroySemaphore(_device, _renderFinishedSemaphores[i], nullptr);
-            vkDestroySemaphore(_device, _imageAvailableSemaphores[i], nullptr);
-            vkDestroyFence(_device, _inFlightFences[i], nullptr);
-        }
-
-        vkDestroyCommandPool(_device, _commandPool, nullptr);
-
+    void CleanupSwapChain() {
         for (auto framebuffer : _swapChainFramebuffers) {
             vkDestroyFramebuffer(_device, framebuffer, nullptr);
         }
+
+        vkFreeCommandBuffers(_device, _commandPool,
+                static_cast<unsigned int>(_commandBuffers.size()),
+                _commandBuffers.data());
 
         vkDestroyPipeline(_device, _graphicsPipeline, nullptr);
         vkDestroyPipelineLayout(_device, _pipelineLayout, nullptr);
@@ -130,11 +137,47 @@ private:
         }
 
         vkDestroySwapchainKHR(_device, _swapChain, nullptr);
+    }
+
+    void Cleanup() {
+        CleanupSwapChain();
+
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+            vkDestroySemaphore(_device, _renderFinishedSemaphores[i], nullptr);
+            vkDestroySemaphore(_device, _imageAvailableSemaphores[i], nullptr);
+            vkDestroyFence(_device, _inFlightFences[i], nullptr);
+        }
+
+        vkDestroyCommandPool(_device, _commandPool, nullptr);
+
         vkDestroyDevice(_device, nullptr);
         vkDestroySurfaceKHR(_instance, _surface, nullptr);
         vkDestroyInstance(_instance, nullptr);
         glfwDestroyWindow(_window);
         glfwTerminate();
+    }
+
+    void RecreateSwapChain() {
+        int width = 0, height = 0;
+        glfwGetFramebufferSize(_window, &width, &height);
+
+        while (width == 0 || height == 0) {
+            glfwGetFramebufferSize(_window, &width, &height);
+            glfwWaitEvents();
+        }
+
+        vkDeviceWaitIdle(_device);
+
+        CleanupSwapChain();
+
+        CreateSwapChain();
+        CreateImageViews();
+        CreateRenderPass();
+        CreateGraphicsPipeline();
+        CreateFramebuffers();
+        CreateCommandBuffers();
+
+        _imagesInFlight.resize(_swapChainImages.size(), VK_NULL_HANDLE);
     }
 
     void CreateInstance() {
@@ -376,9 +419,10 @@ private:
     }
 
     void CreateCommandBuffers() {
+        // std::cout << "CreateCommandBuffers() called!" << std::endl;
         _commandBuffers.resize(_swapChainFramebuffers.size());
-        std::cout << "Value of _commandBuffers.size() (based on 'imageCount') = "
-                  << _commandBuffers.size() << std::endl;
+        // std::cout << "Value of _commandBuffers.size() (based on 'imageCount') = "
+        //           << _commandBuffers.size() << std::endl;
 
         VkCommandBufferAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -392,6 +436,7 @@ private:
     }
 
     void RecordCommandBuffer(std::vector<VkCommandBuffer> _commandBuffers, uint32_t imageIndex) {
+        // std::cout << "RecordCommandBuffer(...) called!" << std::endl;
         for (size_t i = 0; i < _commandBuffers.size(); ++i) {
             VkCommandBufferBeginInfo beginInfo{};
             beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -471,8 +516,19 @@ private:
         vkWaitForFences(_device, 1, &_inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
         uint32_t imageIndex;
-        vkAcquireNextImageKHR(_device, _swapChain, UINT64_MAX,
+        VkResult result = vkAcquireNextImageKHR(_device, _swapChain, UINT64_MAX,
                 _imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+        
+        if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+            RecreateSwapChain();
+            // std::cout << "result was NOT EQUAL to VK_ERROR_OUT_OF_DATE_KHR" << std::endl
+            //           << "Recreating swap chain and returning..." << std::endl;
+            return;
+        }
+        else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+            throw std::runtime_error("Failed to acquire swap chain image!");
+        }
+
         if (_imagesInFlight[imageIndex] != VK_NULL_HANDLE) {
             vkWaitForFences(_device, 1, &_imagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);
         }
@@ -515,7 +571,16 @@ private:
         
         presentInfo.pImageIndices = &imageIndex;
 
-        vkQueuePresentKHR(_presentQueue, &presentInfo);
+        result = vkQueuePresentKHR(_presentQueue, &presentInfo);
+
+        if (result != VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR 
+                                               || _framebufferResized) {
+            _framebufferResized = false;
+            RecreateSwapChain();
+        }
+        else if (result != VK_SUCCESS) {
+            throw std::runtime_error("Failed to present swap chain image!");
+        }
 
         currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
     }
@@ -548,7 +613,7 @@ private:
             imageCount > swapChainSupport.capabilities.maxImageCount) {
             imageCount = swapChainSupport.capabilities.maxImageCount;
         }
-        std::cout << "Value of imageCount = " << imageCount << std::endl;
+        // std::cout << "Value of imageCount = " << imageCount << std::endl;
 
         VkSwapchainCreateInfoKHR createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
@@ -581,7 +646,6 @@ private:
         createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
         createInfo.presentMode = presentMode;
         createInfo.clipped = VK_TRUE;
-        createInfo.oldSwapchain = VK_NULL_HANDLE;
 
         if (vkCreateSwapchainKHR(
             _device, &createInfo, nullptr, &_swapChain) != VK_SUCCESS) {
@@ -796,8 +860,8 @@ private:
             throw std::runtime_error("Failed to open file!");
         }
         size_t fileSize = (size_t) file.tellg();
-        std::cout << "VERIFICATION: Size of file '" << filename << "' is: "
-                << fileSize << " byte." << std::endl;
+        // std::cout << "VERIFICATION: Size of file '" << filename << "' is: "
+        //         << fileSize << " byte." << std::endl;
 
         std::vector<char> buffer(fileSize);
         file.seekg(0);
