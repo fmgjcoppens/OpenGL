@@ -7,7 +7,7 @@ CXXFLAGS="-march=skylake -O3"
 # check if symlinks exist and are not broken. If not, do the following...
 if [[ (! -e include/GLFW || ! -e include/linmath.h || ! -e lib/GLFW ) ]]
 then
-    # Maybe only the symlinks are gone/broken. If not clone repo and build.
+    # Maybe only the symlinks are gone/broken. If not, clone repo and build.
     if [[ ! -d glfw/install ]]
     then
         git clone --recursive git@github.com:glfw/glfw.git
@@ -21,7 +21,7 @@ fi
 # check if symlinks exist and are not broken. If not, do the following...
 if [[ ! -e include/glm ]]
 then
-    # Maybe only the symlinks are gone/broken. If not clone repo and build.
+    # Maybe only the symlinks are gone/broken. If not, clone repo and build.
     if [[ ! -d glm/install ]]
     then
         git clone --recursive git@github.com:g-truc/glm.git
@@ -46,7 +46,10 @@ fi
 # $CXX glfw_vulkan_bare.o lib/GLFW/libglfw3.a -lvulkan -o run_glfw_vulkan_bare
 # rm glfw_vulkan_bare.o
 
-# $CXX $CXXFLAGS -c glfw_vulkan_triangle.cpp
-# $CXX glfw_vulkan_triangle.o lib/GLFW/libglfw3.a -lvulkan -o run_glfw_vulkan_triangle
-# rm glfw_vulkan_triangle.o
-# (cd shaders && ./compile.sh && echo Compiled vertex- and frag shaders into SPIR-V bytecode.)
+$CXX $CXXFLAGS -c glfw_vulkan_triangle.cpp
+$CXX glfw_vulkan_triangle.o lib/GLFW/libglfw3.a -lvulkan -o run_glfw_vulkan_triangle
+rm glfw_vulkan_triangle.o
+if [[ ! -f shaders/vert.spirv || ! -e shaders/frag.spirv ]]
+then
+    (cd shaders && ./compile.sh && echo Compiled vertex- and frag shaders into SPIR-V bytecode.)
+fi
