@@ -21,7 +21,6 @@ const std::vector<const char*> deviceExtensions = {
 };
 
 struct QueueFamilyIndices {
-
     std::optional<uint32_t> graphicsFamily;
     std::optional<uint32_t> presentFamily;
 
@@ -80,8 +79,8 @@ private:
     void InitWindow() {
         glfwInit();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-        _window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan Triangle App", nullptr, nullptr);
+        // glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+        _window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan Renderer", nullptr, nullptr);
     }
 
     void InitVulkan() {
@@ -110,7 +109,6 @@ private:
     }
 
     void Cleanup() {
-
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
             vkDestroySemaphore(_device, _renderFinishedSemaphores[i], nullptr);
             vkDestroySemaphore(_device, _imageAvailableSemaphores[i], nullptr);
@@ -164,8 +162,6 @@ private:
         if (vkCreateInstance(&createInfo, nullptr, &_instance) != VK_SUCCESS) {
             throw std::runtime_error("Failed to create Vulkan instance!");
         }
-
-        // PrintVulkanExtensions(glfwExtensionCount);
     }
 
     void CreateImageViews() {
@@ -304,6 +300,7 @@ private:
             VK_DYNAMIC_STATE_VIEWPORT,
             VK_DYNAMIC_STATE_SCISSOR
         };
+
         VkPipelineDynamicStateCreateInfo dynamicState{};
         dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
         dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
@@ -347,9 +344,7 @@ private:
         _swapChainFramebuffers.resize(_swapChainImageViews.size());
 
         for (size_t i = 0; i < _swapChainImageViews.size(); i++) {
-            VkImageView attachments[] = {
-                _swapChainImageViews[i]
-            };
+            VkImageView attachments[] = {_swapChainImageViews[i]};
 
             VkFramebufferCreateInfo frameBufferInfo{};
             frameBufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -382,7 +377,8 @@ private:
 
     void CreateCommandBuffers() {
         _commandBuffers.resize(_swapChainFramebuffers.size());
-        std::cout << "Value of _commandBuffers.size() (based on 'imageCount') = " << _commandBuffers.size() << std::endl;
+        std::cout << "Value of _commandBuffers.size() (based on 'imageCount') = "
+                  << _commandBuffers.size() << std::endl;
 
         VkCommandBufferAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -445,11 +441,14 @@ private:
 
     void CreateSyncObjects() {
         _imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-        std::cout << "Size of _imageAvailableSemaphores: " << _imageAvailableSemaphores.size() << " objects." << std::endl;
+        std::cout << "Size of _imageAvailableSemaphores: "
+                  << _imageAvailableSemaphores.size() << " objects." << std::endl;
         _renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-        std::cout << "Size of _renderFinishedSemaphores: " << _renderFinishedSemaphores.size() << " objects." << std::endl;
+        std::cout << "Size of _renderFinishedSemaphores: "
+                  << _renderFinishedSemaphores.size() << " objects." << std::endl;
         _inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
-        std::cout << "Size of _inFlightFences: " << _inFlightFences.size() << " objects." << std::endl;
+        std::cout << "Size of _inFlightFences: " << _inFlightFences.size()
+                  << " objects." << std::endl;
         _imagesInFlight.resize(_swapChainImages.size(), VK_NULL_HANDLE);
 
         VkSemaphoreCreateInfo semaphoreInfo{};
@@ -562,8 +561,10 @@ private:
         createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
         
         QueueFamilyIndices indices = FindQueueFamilies(_physicalDevice);
-        uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(),
-                                             indices.presentFamily.value()};
+        uint32_t queueFamilyIndices[] = {
+            indices.graphicsFamily.value(),
+            indices.presentFamily.value()
+        };
 
         if (indices.graphicsFamily != indices.presentFamily) {
             createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
@@ -665,7 +666,8 @@ private:
         bool swapChainAdequate = false;
         if (extensionsSupported) {
             SwapChainSupportDetails swapChainSupport = querySwapChainSupport(device);
-            swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
+            swapChainAdequate = !swapChainSupport.formats.empty() &&
+                                !swapChainSupport.presentModes.empty();
         }
 
         return indices.isCompleted() && extensionsSupported && swapChainAdequate;
@@ -748,7 +750,6 @@ private:
     }
 
     VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
-
         for (const auto& availableFormat : availableFormats) {
             if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && 
                 availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
@@ -760,7 +761,6 @@ private:
     }
 
     VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) {
-
         for (const auto& availablePresentMode : availablePresentModes) {
             if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
                 return availablePresentMode;
@@ -773,7 +773,8 @@ private:
     VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) {
         if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
             return capabilities.currentExtent;
-        } else {
+        }
+        else {
             int width, height;
             glfwGetFramebufferSize(_window, &width, &height);
 
@@ -786,15 +787,6 @@ private:
             actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
 
             return actualExtent;
-        }
-    }
-
-    void PrintVulkanExtensions(uint32_t& ec) {
-        std::vector<VkExtensionProperties> extensions(ec);
-        vkEnumerateInstanceExtensionProperties(nullptr, &ec, extensions.data());
-        std::cout << "Available Vulkan extensions:" << std::endl;
-        for (const auto &extension : extensions) {
-            std::cout << "\t" << extension.extensionName << std::endl;
         }
     }
 
