@@ -30,6 +30,11 @@ then
     ln -svf ../glm/install/usr/local/include/glm include
 fi
 
+if [[ ! -f shaders/vert.spirv || ! -e shaders/frag.spirv ]]
+then
+    (cd shaders && ./compile.sh && echo Compiled vertex- and frag shaders into SPIR-V bytecode.)
+fi
+
 # $CXX $CXXFLAGS -c glad.c
 # ar rcs lib/libglad.a glad.o
 # rm glad.o
@@ -46,10 +51,10 @@ fi
 # $CXX glfw_vulkan_bare.o lib/GLFW/libglfw3.a -lvulkan -o run_glfw_vulkan_bare
 # rm glfw_vulkan_bare.o
 
-$CXX $CXXFLAGS -c glfw_vulkan_triangle.cpp
-$CXX glfw_vulkan_triangle.o lib/GLFW/libglfw3.a -lvulkan -o run_glfw_vulkan_triangle
-rm glfw_vulkan_triangle.o
-if [[ ! -f shaders/vert.spirv || ! -e shaders/frag.spirv ]]
-then
-    (cd shaders && ./compile.sh && echo Compiled vertex- and frag shaders into SPIR-V bytecode.)
-fi
+# $CXX $CXXFLAGS -c glfw_vulkan_triangle.cpp
+# $CXX glfw_vulkan_triangle.o lib/GLFW/libglfw3.a -lvulkan -o run_glfw_vulkan_triangle
+# rm glfw_vulkan_triangle.o
+
+$CXX $CXXFLAGS -c vulkan_glfw_quad.cpp
+$CXX vulkan_glfw_quad.o lib/GLFW/libglfw3.a -lvulkan -o run_vulkan_glfw_quad
+rm vulkan_glfw_quad.o
