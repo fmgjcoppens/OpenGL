@@ -13,8 +13,8 @@ then
         git clone --recursive git@github.com:glfw/glfw.git
         (cd glfw && mkdir _build && cd _build && cmake .. && make -j DESTDIR=$PWD/../install install)
     fi
-    ln -sfv ../glfw/install/usr/local/include/GLFW include
-    ln -sfv ../glfw/deps/linmath.h include
+    ln -sfv ../glfw/install/usr/local/include/GLFW include/
+    ln -sfv ../glfw/deps/linmath.h include/
     ln -sfv ../glfw/install/usr/local/lib lib/GLFW
 fi
 
@@ -27,7 +27,13 @@ then
         git clone --recursive git@github.com:g-truc/glm.git
         (cd glm && mkdir _build && cd _build && cmake .. && make -j DESTDIR=$PWD/../install install)
     fi
-    ln -svf ../glm/install/usr/local/include/glm include
+    ln -svf ../glm/install/usr/local/include/glm include/
+fi
+
+if [[ ! -e include/stb_image.h ]]
+then
+    git clone git@github.com:nothings/stb.git
+    ln -sfv ../stb/stb_image.h include/
 fi
 
 if [[ ! -f shaders/vert.spirv || ! -e shaders/frag.spirv ]]
@@ -55,6 +61,10 @@ fi
 # $CXX glfw_vulkan_triangle.o lib/GLFW/libglfw3.a -lvulkan -o run_glfw_vulkan_triangle
 # rm glfw_vulkan_triangle.o
 
-$CXX $CXXFLAGS -c vulkan_glfw_quad.cpp
-$CXX vulkan_glfw_quad.o lib/GLFW/libglfw3.a -lvulkan -o run_vulkan_glfw_quad
-rm vulkan_glfw_quad.o
+# $CXX $CXXFLAGS -c vulkan_glfw_quad.cpp
+# $CXX vulkan_glfw_quad.o lib/GLFW/libglfw3.a -lvulkan -o run_vulkan_glfw_quad
+# rm vulkan_glfw_quad.o
+
+$CXX $CXXFLAGS -c vulkan_glfw_texture_mapping.cpp
+$CXX vulkan_glfw_texture_mapping.o lib/GLFW/libglfw3.a -lvulkan -o run_vulkan_glfw_textured
+rm vulkan_glfw_texture_mapping.o
