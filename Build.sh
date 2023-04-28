@@ -2,7 +2,7 @@
 
 #CXX=/shared/Linux/opt/nvidia/hpc_sdk/Linux_x86_64/23.1/compilers/bin/nvc++
 CXX=g++
-CXXFLAGS="-march=skylake -O3"
+CXXFLAGS="-march=skylake -g -O3"
 
 # check if symlinks exist and are not broken. If not, do the following...
 if [[ (! -e include/GLFW || ! -e include/linmath.h || ! -e lib/GLFW ) ]]
@@ -36,10 +36,10 @@ then
     ln -sfv ../stb/stb_image.h include/
 fi
 
-if [[ ! -f shaders/vert.spirv || ! -e shaders/frag.spirv ]]
-then
+# if [[ ! -f shaders/vert.spirv || ! -e shaders/frag.spirv ]]
+# then
     (cd shaders && ./compile.sh && echo Compiled vertex- and frag shaders into SPIR-V bytecode.)
-fi
+# fi
 
 # $CXX $CXXFLAGS -c glad.c
 # ar rcs lib/libglad.a glad.o
